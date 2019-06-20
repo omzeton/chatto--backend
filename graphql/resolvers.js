@@ -2,9 +2,12 @@ const bcrypt = require("bcryptjs");
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
 const io = require("../socket");
+const crypto = require("crypto");
 
 const User = require("../models/user");
 const Conv = require("../models/conv");
+
+const key = "TheKey%%123";
 
 function getCurrentDate() {
   let today = new Date();
@@ -76,7 +79,11 @@ module.exports = {
       password: hashedPw
     });
     const createdUser = await user.save();
-    return { ...createdUser._doc, _id: createdUser._id.toString() };
+    return {
+      ...createdUser._doc,
+      _id: createdUser._id.toString(),
+      username: createdUser.username
+    };
   },
   login: async function({ username, password }) {
     const user = await User.findOne({ username: username });
@@ -99,7 +106,11 @@ module.exports = {
       "badzzdrow",
       { expiresIn: "1d" }
     );
-    return { token: token, userId: user._id.toString() };
+    return {
+      token: token,
+      userId: user._id.toString(),
+      username: user.username
+    };
   },
   fetchConversation: async function({ conversationId }) {
     // 5d0a787817c18e39c4a7aebc
@@ -120,5 +131,36 @@ module.exports = {
       post: { messages: conv.messages }
     });
     return { messages: conv.messages };
+  },
+  createLink: async function({ userId }) {
+    const user = await User.findById(userId);
+    const conversation = new Conv({
+      messages: [],
+      users: [
+        {
+          uId: user._id,
+          username: user.username
+        }
+      ]
+    });
+    const newConversation = await conversation.save();
+    const link = newConversation._id.toString();
+    const hashedLink = await crypto
+      .createCipher("aes-256-ctr", key)
+      .update(link, "utf8", "hex");
+    return { chatroomLink: hashedLink };
+  },
+  connectToConversation: async function({ chatroomLink, userId }) {
+    const chatroomUrl = await crypto
+      .createDecipher("aes-256-ctr", key)
+      .update(chatroomLink, "hex", "utf8");
+    const conversation = await Conv.findById(chatroomUrl);
+    const user = await User.findById(userId);
+    const newUser = {
+      uId: user._id,
+      username: user.username
+    };
+    conversation.users.push(newUser);
+    return { chatroomUrl: chatroomUrl };
   }
 };

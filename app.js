@@ -30,7 +30,7 @@ app.use(
     schema: graphqlSchema,
     rootValue: graphqlResolver,
     graphiql: true,
-    formatError(err) {
+    customFormatErrorFn(err) {
       if (!err.originalError) {
         return err;
       }
@@ -53,7 +53,6 @@ app.use((error, req, res, next) => {
 mongoose
   .connect(MONGODB_URI, { useNewUrlParser: true, useFindAndModify: false })
   .then(() => {
-    console.log("在线");
     const server = app.listen(8080);
     const io = require('./socket').init(server);
     io.on('connection', socket => {

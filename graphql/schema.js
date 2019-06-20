@@ -11,6 +11,7 @@ module.exports = buildSchema(`
     type AuthData {
         token: String!
         userId: String!
+        username: String!
     }
 
     type ConfirmData {
@@ -33,6 +34,14 @@ module.exports = buildSchema(`
         users: [UserMini!]!
     }
 
+    type Link {
+        chatroomLink: String!
+    }
+
+    type Url {
+        chatroomUrl: String!
+    }
+
     input UserInputData {
         username: String!
         email: String!
@@ -49,6 +58,8 @@ module.exports = buildSchema(`
     type RootQuery {
         login(username: String!, password: String!): AuthData!
         fetchConversation(conversationId: String!): ConversationData!
+        createLink(userId: String!): Link!
+        connectToConversation(chatroomLink: String!, userId: String!): Url!
     }
 
     type RootMutation {

@@ -7,7 +7,7 @@ const convSchema = new Schema({
       uId: {
         type: Schema.Types.ObjectId,
         ref: "User",
-        required: true
+        required: false
       },
       body: {
         type: String,
@@ -15,7 +15,7 @@ const convSchema = new Schema({
       },
       date: {
         type: String,
-        required: true
+        required: false
       }
     }
   ],
