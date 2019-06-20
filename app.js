@@ -3,7 +3,7 @@ const MONGODB_URI = `mongodb+srv://${process.env.MONGO_USER}:${
 }@cluster0-cuqhr.mongodb.net/${process.env.MONGO_DB}`;
 
 const express = require("express");
-const mongoose = require("mongoose").set('debug', true);
+const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const graphqlHttp = require("express-graphql");
 const graphqlSchema = require("./graphql/schema");
@@ -54,7 +54,6 @@ mongoose
   .connect(MONGODB_URI, { useNewUrlParser: true, useFindAndModify: false })
   .then(() => {
     console.log("在线");
-    // app.listen(8080);
     const server = app.listen(8080);
     const io = require('./socket').init(server);
     io.on('connection', socket => {
