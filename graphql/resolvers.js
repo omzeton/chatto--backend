@@ -113,7 +113,6 @@ module.exports = {
     };
   },
   fetchConversation: async function({ conversationId }) {
-    // 5d0a787817c18e39c4a7aebc
     const conv = await Conv.findOne({ _id: conversationId });
     return { messages: conv.messages, users: conv.users };
   },
@@ -154,13 +153,27 @@ module.exports = {
     const chatroomUrl = await crypto
       .createDecipher("aes-256-ctr", key)
       .update(chatroomLink, "hex", "utf8");
+    let add = true;
     const conversation = await Conv.findById(chatroomUrl);
-    const user = await User.findById(userId);
-    const newUser = {
-      uId: user._id,
-      username: user.username
-    };
-    conversation.users.push(newUser);
+    for (let i = 0; i < conversation.users.length; i++) {
+      if (conversation.users[i].uId.toString() === userId) {
+        add = false;
+      }
+    }
+    if (add) {
+      console.log(add);
+      const user = await User.findById(userId);
+      const newUser = {
+        uId: user._id,
+        username: user.username
+      };
+      conversation.users.push(newUser);
+      await conversation.save();
+    }
+    io.getIO().emit("messages", {
+      action: "join",
+      post: { users: conversation.users }
+    });
     return { chatroomUrl: chatroomUrl };
   }
 };
