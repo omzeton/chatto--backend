@@ -20,6 +20,10 @@ const convSchema = new Schema({
       avatar: {
         type: String,
         required: true
+      },
+      attachment: {
+        type: String,
+        required: false
       }
     }
   ],

@@ -123,7 +123,8 @@ module.exports = {
       uId: messageInput.userId,
       body: messageInput.body,
       date: getCurrentDate(),
-      avatar: messageInput.avatar
+      avatar: messageInput.avatar,
+      attachment: messageInput.attachment
     };
     conv.messages.push(newMessage);
     await conv.save();

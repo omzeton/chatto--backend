@@ -25,6 +25,7 @@ module.exports = buildSchema(`
         body: String!
         date: String!
         avatar: String!
+        attachment: String!
     }
 
     type UserMini {
@@ -68,6 +69,7 @@ module.exports = buildSchema(`
         userId: String!
         body: String!
         avatar: String!
+        attachment: String!
     }
 
     type RootQuery {
