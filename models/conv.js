@@ -16,6 +16,10 @@ const convSchema = new Schema({
       date: {
         type: String,
         required: false
+      },
+      avatar: {
+        type: String,
+        required: true
       }
     }
   ],
@@ -27,6 +31,10 @@ const convSchema = new Schema({
         required: true
       },
       username: {
+        type: String,
+        required: true
+      },
+      avatar: {
         type: String,
         required: true
       }

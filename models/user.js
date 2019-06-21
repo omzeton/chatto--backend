@@ -13,7 +13,23 @@ const userSchema = new Schema({
   username: {
     type: String,
     required: true
-  }
+  },
+  avatar: {
+    type: String,
+    required: true
+  },
+  conversations: [
+    {
+      url: {
+        type: String,
+        required: true
+      },
+      date: {
+        type: String,
+        required: true
+      }
+    }
+  ]
 });
 
 module.exports = mongoose.model("User", userSchema);

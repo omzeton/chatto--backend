@@ -6,12 +6,14 @@ module.exports = buildSchema(`
         username: String!
         email: String!
         password: String!
+        avatar: String!
     }
 
     type AuthData {
         token: String!
         userId: String!
         username: String!
+        avatar: String!
     }
 
     type ConfirmData {
@@ -22,11 +24,13 @@ module.exports = buildSchema(`
         uId: String!
         body: String!
         date: String!
+        avatar: String!
     }
 
     type UserMini {
         uId: String!
         username: String!
+        avatar: String!
     }
     
     type ConversationData {
@@ -36,10 +40,20 @@ module.exports = buildSchema(`
 
     type Link {
         chatroomLink: String!
+        url: String!
+        date: String!
     }
 
     type Url {
         chatroomUrl: String!
+    }
+
+    type Conversations {
+        conversations: [Link!]
+    }
+
+    type AvatarConfirm {
+        message: String!
     }
 
     input UserInputData {
@@ -53,6 +67,7 @@ module.exports = buildSchema(`
         conversationId: String!
         userId: String!
         body: String!
+        avatar: String!
     }
 
     type RootQuery {
@@ -60,11 +75,13 @@ module.exports = buildSchema(`
         fetchConversation(conversationId: String!): ConversationData!
         createLink(userId: String!): Link!
         connectToConversation(chatroomLink: String!, userId: String!): Url!
+        getPreviousConversations(userId: String!): Conversations!
     }
 
     type RootMutation {
         createUser(userInput: UserInputData): User!
         createMessage(messageInput: MessageInputData): ConfirmData!
+        changeUserAvatar(fileUrl: String!, userId: String!): AvatarConfirm!
     }
 
     schema {

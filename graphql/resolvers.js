@@ -75,8 +75,8 @@ module.exports = {
     const user = new User({
       username: userInput.username,
       email: userInput.email,
-      name: userInput.name,
-      password: hashedPw
+      password: hashedPw,
+      avatar: "images/no-avatar.jpg"
     });
     const createdUser = await user.save();
     return {
@@ -109,7 +109,8 @@ module.exports = {
     return {
       token: token,
       userId: user._id.toString(),
-      username: user.username
+      username: user.username,
+      avatar: user.avatar
     };
   },
   fetchConversation: async function({ conversationId }) {
@@ -121,7 +122,8 @@ module.exports = {
     const newMessage = {
       uId: messageInput.userId,
       body: messageInput.body,
-      date: getCurrentDate()
+      date: getCurrentDate(),
+      avatar: messageInput.avatar
     };
     conv.messages.push(newMessage);
     await conv.save();
@@ -138,7 +140,8 @@ module.exports = {
       users: [
         {
           uId: user._id,
-          username: user.username
+          username: user.username,
+          avatar: user.avatar
         }
       ]
     });
@@ -147,6 +150,11 @@ module.exports = {
     const hashedLink = await crypto
       .createCipher("aes-256-ctr", key)
       .update(link, "utf8", "hex");
+    user.conversations.push({
+      url: hashedLink,
+      date: getCurrentDate()
+    });
+    await user.save();
     return { chatroomLink: hashedLink };
   },
   connectToConversation: async function({ chatroomLink, userId }) {
@@ -165,7 +173,8 @@ module.exports = {
       const user = await User.findById(userId);
       const newUser = {
         uId: user._id,
-        username: user.username
+        username: user.username,
+        avatar: user.avatar
       };
       conversation.users.push(newUser);
       await conversation.save();
@@ -175,5 +184,16 @@ module.exports = {
       post: { users: conversation.users }
     });
     return { chatroomUrl: chatroomUrl };
+  },
+  getPreviousConversations: async function({ userId }) {
+    const user = await User.findById(userId);
+    return { conversations: user.conversations };
+  },
+  changeUserAvatar: async function({ fileUrl, userId }) {
+    console.log(userId);
+    const user = await User.findById(userId);
+    user.avatar = fileUrl;
+    await user.save();
+    return { message: "Avatar changed successfully. " };
   }
 };
