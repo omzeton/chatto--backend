@@ -152,6 +152,7 @@ module.exports = {
       .createCipher("aes-256-ctr", key)
       .update(link, "utf8", "hex");
     user.conversations.push({
+      cId: newConversation._id,
       url: hashedLink,
       date: getCurrentDate()
     });
@@ -164,14 +165,16 @@ module.exports = {
       .update(chatroomLink, "hex", "utf8");
     let add = true;
     const conversation = await Conv.findById(chatroomUrl);
+    const user = await User.findById(userId);
+
     for (let i = 0; i < conversation.users.length; i++) {
       if (conversation.users[i].uId.toString() === userId) {
         add = false;
       }
     }
+
     if (add) {
       console.log(add);
-      const user = await User.findById(userId);
       const newUser = {
         uId: user._id,
         username: user.username,
@@ -180,6 +183,25 @@ module.exports = {
       conversation.users.push(newUser);
       await conversation.save();
     }
+
+    let addConv = true;
+    for (let y = 0; y < user.conversations.length; y++) {
+      if (
+        user.conversations[y].cId.toString() === conversation._id.toString()
+      ) {
+        addConv = false;
+      }
+    }
+    if (addConv) {
+      const newConversation = {
+        cId: conversation._id,
+        url: chatroomLink,
+        date: getCurrentDate()
+      };
+      user.conversations.push(newConversation);
+      await user.save();
+    }
+
     io.getIO().emit("messages", {
       action: "join",
       post: { users: conversation.users }
@@ -191,10 +213,31 @@ module.exports = {
     return { conversations: user.conversations };
   },
   changeUserAvatar: async function({ fileUrl, userId }) {
-    console.log(userId);
     const user = await User.findById(userId);
+    let oldAvatar = user.avatar,
+      uId = user._id;
     user.avatar = fileUrl;
     await user.save();
+    const convIds = [];
+    for (let c of user.conversations) {
+      convIds.push(c.cId);
+    }
+    for (let i = 0; i < convIds.length; i++) {
+      let conversation = await Conv.findById(convIds[i]);
+      for (let y = 0; y < conversation.messages.length; y++) {
+        if (conversation.messages[y].avatar === oldAvatar) {
+          conversation.messages[y].avatar = fileUrl;
+        }
+      }
+      for (let x = 0; x < conversation.users.length; x++) {
+        if (conversation.users[x].uId.toString() === uId.toString()) {
+          conversation.users[x].avatar = fileUrl;
+          console.log(conversation.users[x]._id);
+        }
+      }
+      await conversation.save();
+    }
+    console.log("All avatars updated.");
     return { message: "Avatar changed successfully. " };
   }
 };

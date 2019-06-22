@@ -20,6 +20,10 @@ const userSchema = new Schema({
   },
   conversations: [
     {
+      cId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Conv'
+      },
       url: {
         type: String,
         required: true
