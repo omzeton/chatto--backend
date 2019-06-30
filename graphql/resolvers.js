@@ -239,5 +239,32 @@ module.exports = {
     }
     console.log("All avatars updated.");
     return { message: "Avatar changed successfully. " };
+  },
+  changePassword: async function({
+    oldPassword,
+    newPassword,
+    repeatPassword,
+    userId
+  }) {
+    if (
+      validator.isEmpty(repeatPassword) ||
+      !validator.isLength(repeatPassword, { min: 5 })
+    ) {
+      return { message: "Password must be 5+ characters long." };
+    }
+    if (newPassword !== repeatPassword) {
+      return { message: "New passwords have to match." };
+    }
+    const user = await User.findById(userId);
+    const isEqual = await bcrypt.compare(oldPassword, user.password);
+    if (!isEqual) {
+      return {
+        message: "Incorrect old password. Please use your current one."
+      };
+    }
+    const hashedPw = await bcrypt.hash(repeatPassword, 12);
+    user.password = hashedPw;
+    await user.save();
+    return { message: "Password changed successfully." };
   }
 };
