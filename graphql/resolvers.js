@@ -50,7 +50,7 @@ module.exports = {
 
     const existingUser = await User.findOne({ email: userInput.email });
     if (existingUser) {
-      errors.push({ message: "User already exists!" });
+      errors.push({ message: "This email is already used!" });
     }
 
     if (
@@ -174,7 +174,6 @@ module.exports = {
     }
 
     if (add) {
-      console.log(add);
       const newUser = {
         uId: user._id,
         username: user.username,
@@ -232,12 +231,10 @@ module.exports = {
       for (let x = 0; x < conversation.users.length; x++) {
         if (conversation.users[x].uId.toString() === uId.toString()) {
           conversation.users[x].avatar = fileUrl;
-          console.log(conversation.users[x]._id);
         }
       }
       await conversation.save();
     }
-    console.log("All avatars updated.");
     return { message: "Avatar changed successfully. " };
   },
   changePassword: async function({
@@ -266,5 +263,35 @@ module.exports = {
     user.password = hashedPw;
     await user.save();
     return { message: "Password changed successfully." };
+  },
+  changeUsername: async function({ username, userId }) {
+    if (
+      validator.isEmpty(username) ||
+      !validator.isLength(username, { min: 3 })
+    ) {
+      return { message: "Username must be at least 3+ long." };
+    }
+    const user = await User.findById(userId);
+    user.username = username;
+    await user.save();
+
+    const convIds = [];
+    for (let c of user.conversations) {
+      convIds.push(c.cId);
+    }
+    for (let i = 0; i < convIds.length; i++) {
+      let conversation = await Conv.findById(convIds[i]);
+      for (let x = 0; x < conversation.users.length; x++) {
+        if (conversation.users[x].uId.toString() === user._id.toString()) {
+          conversation.users[x].username = username;
+        }
+      }
+      await conversation.save();
+    }
+    return { message: "Username changed successfully." };
+  },
+  deleteAccount: async function({ userId }) {
+    await User.findByIdAndDelete(userId);
+    return { status: 204 };
   }
 };

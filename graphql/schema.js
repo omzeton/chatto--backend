@@ -61,6 +61,14 @@ module.exports = buildSchema(`
         message: String!
     }
 
+    type UsernameConfirm {
+        message: String!
+    }
+
+    type DeletionConfirm {
+        status: Int!
+    }
+
     input UserInputData {
         username: String!
         email: String!
@@ -89,6 +97,8 @@ module.exports = buildSchema(`
         createMessage(messageInput: MessageInputData): ConfirmData!
         changeUserAvatar(fileUrl: String!, userId: String!): AvatarConfirm!
         changePassword(oldPassword: String!, newPassword: String!, repeatPassword: String!, userId: String!): PasswordConfirm!
+        changeUsername(username: String!, userId: String!): UsernameConfirm!
+        deleteAccount(userId: String!): DeletionConfirm!
     }
 
     schema {
