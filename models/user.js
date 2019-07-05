@@ -18,17 +18,21 @@ const userSchema = new Schema({
     type: String,
     required: true
   },
-  conversations: [
+  registryDate: {
+    type: String,
+    required: true
+  },
+  contacts: [
     {
-      cId: {
+      uId: {
         type: Schema.Types.ObjectId,
-        ref: 'Conv'
+        required: true
       },
-      url: {
+      avatar: {
         type: String,
         required: true
       },
-      date: {
+      username: {
         type: String,
         required: true
       }

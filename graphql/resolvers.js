@@ -76,7 +76,9 @@ module.exports = {
       username: userInput.username,
       email: userInput.email,
       password: hashedPw,
-      avatar: "images/no-avatar.jpg"
+      avatar: "images/no-avatar.jpg",
+      registryDate: getCurrentDate(),
+      contacts: []
     });
     const createdUser = await user.save();
     return {
@@ -113,10 +115,6 @@ module.exports = {
       avatar: user.avatar
     };
   },
-  fetchConversation: async function({ conversationId }) {
-    const conv = await Conv.findOne({ _id: conversationId });
-    return { messages: conv.messages, users: conv.users };
-  },
   createMessage: async function({ messageInput }) {
     const conv = await Conv.findOne({ _id: messageInput.conversationId });
     const newMessage = {
@@ -133,83 +131,6 @@ module.exports = {
       post: { messages: conv.messages }
     });
     return { messages: conv.messages };
-  },
-  createLink: async function({ userId }) {
-    const user = await User.findById(userId);
-    const conversation = new Conv({
-      messages: [],
-      users: [
-        {
-          uId: user._id,
-          username: user.username,
-          avatar: user.avatar
-        }
-      ]
-    });
-    const newConversation = await conversation.save();
-    const link = newConversation._id.toString();
-    const hashedLink = await crypto
-      .createCipher("aes-256-ctr", key)
-      .update(link, "utf8", "hex");
-    user.conversations.push({
-      cId: newConversation._id,
-      url: hashedLink,
-      date: getCurrentDate()
-    });
-    await user.save();
-    return { chatroomLink: hashedLink };
-  },
-  connectToConversation: async function({ chatroomLink, userId }) {
-    const chatroomUrl = await crypto
-      .createDecipher("aes-256-ctr", key)
-      .update(chatroomLink, "hex", "utf8");
-    let add = true;
-    const conversation = await Conv.findById(chatroomUrl);
-    const user = await User.findById(userId);
-
-    for (let i = 0; i < conversation.users.length; i++) {
-      if (conversation.users[i].uId.toString() === userId) {
-        add = false;
-      }
-    }
-
-    if (add) {
-      const newUser = {
-        uId: user._id,
-        username: user.username,
-        avatar: user.avatar
-      };
-      conversation.users.push(newUser);
-      await conversation.save();
-    }
-
-    let addConv = true;
-    for (let y = 0; y < user.conversations.length; y++) {
-      if (
-        user.conversations[y].cId.toString() === conversation._id.toString()
-      ) {
-        addConv = false;
-      }
-    }
-    if (addConv) {
-      const newConversation = {
-        cId: conversation._id,
-        url: chatroomLink,
-        date: getCurrentDate()
-      };
-      user.conversations.push(newConversation);
-      await user.save();
-    }
-
-    io.getIO().emit("messages", {
-      action: "join",
-      post: { users: conversation.users }
-    });
-    return { chatroomUrl: chatroomUrl };
-  },
-  getPreviousConversations: async function({ userId }) {
-    const user = await User.findById(userId);
-    return { conversations: user.conversations };
   },
   changeUserAvatar: async function({ fileUrl, userId }) {
     const user = await User.findById(userId);
@@ -293,5 +214,93 @@ module.exports = {
   deleteAccount: async function({ userId }) {
     await User.findByIdAndDelete(userId);
     return { status: 204 };
+  },
+  connectToStream: async function({ otherId, ownId, useFirstContact }) {
+    let globalOtherId = otherId;
+    if (useFirstContact) {
+      const user = await User.findById(ownId);
+      globalOtherId = user.contacts[0].uId;
+    }
+    // Add user to contacts
+    const currentUser = await User.findById(ownId);
+    let addNewContact = true;
+    for (let c of currentUser.contacts) {
+      if (c.uId.toString() === globalOtherId.toString()) {
+        addNewContact = false;
+      }
+    }
+    const otherUser = await User.findById(globalOtherId);
+
+    if (addNewContact) {
+      const newContactItem = {
+        uId: globalOtherId,
+        avatar: otherUser.avatar,
+        username: otherUser.username
+      };
+      currentUser.contacts.push(newContactItem);
+      await currentUser.save();
+
+      const newContactItemOther = {
+        uId: ownId,
+        avatar: currentUser.avatar,
+        username: currentUser.username
+      };
+      otherUser.contacts.push(newContactItemOther);
+      await otherUser.save();
+    }
+
+    // Check if the conversation already exsists
+    // Create new conversation
+    const allConversations = await Conv.find();
+    let createNewStream = true,
+      currentUserExists = false,
+      otherUserExists = false,
+      convId;
+    for (let i = 0; i < allConversations.length; i++) {
+      for (let u of allConversations[i].users) {
+        if (u.uId.toString() === ownId) {
+          currentUserExists = true;
+        }
+        if (u.uId.toString() === globalOtherId) {
+          otherUserExists = true;
+        }
+      }
+      if (otherUserExists && currentUserExists) {
+        convId = allConversations[i]._id.toString();
+      }
+    }
+    if (otherUserExists && currentUserExists) {
+      createNewStream = false;
+    }
+    if (createNewStream) {
+      const newConversationStream = new Conv({
+        messages: [],
+        users: [
+          {
+            uId: globalOtherId,
+            username: otherUser.username,
+            avatar: otherUser.avatar
+          },
+          {
+            uId: ownId,
+            username: currentUser.username,
+            avatar: currentUser.avatar
+          }
+        ]
+      });
+      const conv = await newConversationStream.save();
+      return { messages: conv.messages, users: conv.users };
+    } else {
+      const conv = await Conv.findById(convId);
+      return { messages: conv.messages, users: conv.users };
+    }
+  },
+  fetchAllUsers: async function({ userId }) {
+    const users = await User.find();
+    return { users: users };
+  },
+  fetchContactList: async function({ userId }) {
+    const user = await User.findById(userId);
+    return { contacts: user.contacts };
   }
 };

@@ -20,6 +20,11 @@ module.exports = buildSchema(`
         messages: [Message!]!
     }
 
+    type ConversationData {
+        messages: [Message!]!
+        users: [UserMini!]!
+    }
+
     type Message {
         uId: String!
         body: String!
@@ -29,44 +34,26 @@ module.exports = buildSchema(`
     }
 
     type UserMini {
+        _id: String!
         uId: String!
         username: String!
         avatar: String!
     }
     
-    type ConversationData {
-        messages: [Message!]!
+    type Confirmation {
+        message: String!
+    }
+
+    type DeletionStatus {
+        status: Int!
+    }
+
+    type Allusers {
         users: [UserMini!]!
     }
 
-    type Link {
-        chatroomLink: String!
-        url: String!
-        date: String!
-    }
-
-    type Url {
-        chatroomUrl: String!
-    }
-
-    type Conversations {
-        conversations: [Link!]
-    }
-
-    type AvatarConfirm {
-        message: String!
-    }
-
-    type PasswordConfirm {
-        message: String!
-    }
-
-    type UsernameConfirm {
-        message: String!
-    }
-
-    type DeletionConfirm {
-        status: Int!
+    type ContactList {
+        contacts: [UserMini!]!
     }
 
     input UserInputData {
@@ -77,7 +64,6 @@ module.exports = buildSchema(`
     }
 
     input MessageInputData {
-        conversationId: String!
         userId: String!
         body: String!
         avatar: String!
@@ -86,19 +72,18 @@ module.exports = buildSchema(`
 
     type RootQuery {
         login(username: String!, password: String!): AuthData!
-        fetchConversation(conversationId: String!): ConversationData!
-        createLink(userId: String!): Link!
-        connectToConversation(chatroomLink: String!, userId: String!): Url!
-        getPreviousConversations(userId: String!): Conversations!
+        fetchAllUsers(userId: String!): Allusers!
+        connectToStream(otherId: String!, ownId: String!, useFirstContact: Boolean!): ConversationData!
+        fetchContactList(userId: String!): ContactList!
     }
 
     type RootMutation {
         createUser(userInput: UserInputData): User!
         createMessage(messageInput: MessageInputData): ConfirmData!
-        changeUserAvatar(fileUrl: String!, userId: String!): AvatarConfirm!
-        changePassword(oldPassword: String!, newPassword: String!, repeatPassword: String!, userId: String!): PasswordConfirm!
-        changeUsername(username: String!, userId: String!): UsernameConfirm!
-        deleteAccount(userId: String!): DeletionConfirm!
+        changeUserAvatar(fileUrl: String!, userId: String!): Confirmation!
+        changePassword(oldPassword: String!, newPassword: String!, repeatPassword: String!, userId: String!): Confirmation!
+        changeUsername(username: String!, userId: String!): Confirmation!
+        deleteAccount(userId: String!): DeletionStatus!
     }
 
     schema {
