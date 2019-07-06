@@ -126,7 +126,7 @@ module.exports = {
     }
     console.log(otherUserId);
     let otherUser = await User.findById(otherUserId);
-    
+
     console.log(otherUser);
     // Find stream where there are both ids
     const allConversations = await Conv.find();
@@ -238,7 +238,6 @@ module.exports = {
     user.username = username;
     await user.save();
 
-
     // Change username in all contacts
     const allUsers = await User.find();
 
@@ -251,28 +250,50 @@ module.exports = {
       await allUsers[i].save();
     }
 
-   // Change avatars in message streams
-   const allConversations = await Conv.find();
+    // Change avatars in message streams
+    const allConversations = await Conv.find();
 
-   for (let i = 0; i < allConversations.length; i++) {
-     // In users
-     for (u of allConversations[i].users) {
-       if (u.uId.toString() === user._id.toString()) {
-         u.username = username;
-       }
-     }
-     // In messages
-     for (m of allConversations[i].messages) {
-       if (m.uId.toString() === user._id.toString()) {
-         m.username = username;
-       }
-     }
-     await allConversations[i].save();
-   }
+    for (let i = 0; i < allConversations.length; i++) {
+      // In users
+      for (u of allConversations[i].users) {
+        if (u.uId.toString() === user._id.toString()) {
+          u.username = username;
+        }
+      }
+      // In messages
+      for (m of allConversations[i].messages) {
+        if (m.uId.toString() === user._id.toString()) {
+          m.username = username;
+        }
+      }
+      await allConversations[i].save();
+    }
     return { message: "Username changed successfully." };
   },
   deleteAccount: async function({ userId }) {
+    // Delete account
     await User.findByIdAndDelete(userId);
+    // Delete conversations
+    const allConversations = await Conv.find();
+    const conversationsToDelete = [];
+    for (let i = 0; i < allConversations.length; i++) {
+      for (let u of allConversations[i].users) {
+        if (u.uId.toString() === userId.toString()) {
+          conversationsToDelete.push(allConversations[i]._id.toString());
+        }
+      }
+    }
+    for (let c of conversationsToDelete) {
+      await Conv.findByIdAndDelete(c);
+    }
+    // Delete user from everybody's contacts
+    const allUsers = await User.find();
+    for (let i = 0; i < allUsers.length; i++) {
+      allUsers[i].contacts = allUsers[i].contacts.filter(
+        value => value.uId.toString() !== userId.toString()
+      );
+      await allUsers[i].save();
+    }
     return { status: 204 };
   },
   connectToStream: async function({ otherId, ownId }) {
@@ -368,6 +389,7 @@ module.exports = {
       conv = await Conv.findById(existingConvId);
     }
 
+    // Signal needs to go to only those interested
     io.getIO().emit("messages", {
       action: "join",
       post: { users: conv.users }
