@@ -116,7 +116,27 @@ module.exports = {
     };
   },
   createMessage: async function({ messageInput }) {
-    const conv = await Conv.findOne({ _id: messageInput.conversationId });
+    // Find stream where there are both ids
+    const allConversations = await Conv.find();
+    let currentUserPresent = false,
+      otherUserPresent = false,
+      streamId;
+    for (let i = 0; i < allConversations.length; i++) {
+      for (let u of allConversations[i].users) {
+        if (u.uId.toString() === messageInput.otherId) {
+          otherUserPresent = true;
+        }
+        if (u.uId.toString() === messageInput.ownId) {
+          currentUserPresent = true;
+        }
+      }
+      if (currentUserPresent && otherUserPresent) {
+        streamId = allConversations[i]._id.toString();
+      }
+    }
+
+    console.log(streamId);
+    const conv = await Conv.findById(streamId);
     const newMessage = {
       uId: messageInput.userId,
       body: messageInput.body,
@@ -222,31 +242,33 @@ module.exports = {
       globalOtherId = user.contacts[0].uId;
     }
     // Add user to contacts
-    const currentUser = await User.findById(ownId);
-    let addNewContact = true;
-    for (let c of currentUser.contacts) {
-      if (c.uId.toString() === globalOtherId.toString()) {
-        addNewContact = false;
+    if (!useFirstContact) {
+      const currentUser = await User.findById(ownId);
+      let addNewContact = true;
+      for (let c of currentUser.contacts) {
+        if (c.uId.toString() === globalOtherId) {
+          addNewContact = false;
+        }
       }
-    }
-    const otherUser = await User.findById(globalOtherId);
+      const otherUser = await User.findById(globalOtherId);
 
-    if (addNewContact) {
-      const newContactItem = {
-        uId: globalOtherId,
-        avatar: otherUser.avatar,
-        username: otherUser.username
-      };
-      currentUser.contacts.push(newContactItem);
-      await currentUser.save();
+      if (addNewContact) {
+        const newContactItem = {
+          uId: globalOtherId,
+          avatar: otherUser.avatar,
+          username: otherUser.username
+        };
+        currentUser.contacts.push(newContactItem);
+        await currentUser.save();
 
-      const newContactItemOther = {
-        uId: ownId,
-        avatar: currentUser.avatar,
-        username: currentUser.username
-      };
-      otherUser.contacts.push(newContactItemOther);
-      await otherUser.save();
+        const newContactItemOther = {
+          uId: ownId,
+          avatar: currentUser.avatar,
+          username: currentUser.username
+        };
+        otherUser.contacts.push(newContactItemOther);
+        await otherUser.save();
+      }
     }
 
     // Check if the conversation already exsists
@@ -261,7 +283,7 @@ module.exports = {
         if (u.uId.toString() === ownId) {
           currentUserExists = true;
         }
-        if (u.uId.toString() === globalOtherId) {
+        if (u.uId.toString() === globalOtherId.toString()) {
           otherUserExists = true;
         }
       }
@@ -272,6 +294,11 @@ module.exports = {
     if (otherUserExists && currentUserExists) {
       createNewStream = false;
     }
+
+    if (useFirstContact) {
+      createNewStream = false;
+    }
+
     if (createNewStream) {
       const newConversationStream = new Conv({
         messages: [],
@@ -289,9 +316,17 @@ module.exports = {
         ]
       });
       const conv = await newConversationStream.save();
+      io.getIO().emit("messages", {
+        action: "join",
+        post: { users: conv.users }
+      });
       return { messages: conv.messages, users: conv.users };
     } else {
       const conv = await Conv.findById(convId);
+      io.getIO().emit("messages", {
+        action: "join",
+        post: { users: conv.users }
+      });
       return { messages: conv.messages, users: conv.users };
     }
   },

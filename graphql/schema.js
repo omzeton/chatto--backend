@@ -64,7 +64,8 @@ module.exports = buildSchema(`
     }
 
     input MessageInputData {
-        userId: String!
+        ownId: String!
+        otherId: String!
         body: String!
         avatar: String!
         attachment: String!
