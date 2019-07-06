@@ -124,10 +124,8 @@ module.exports = {
     if (useFirstContact) {
       otherUserId = currentUser.contacts[0].uId;
     }
-    console.log(otherUserId);
     let otherUser = await User.findById(otherUserId);
 
-    console.log(otherUser);
     // Find stream where there are both ids
     const allConversations = await Conv.find();
     let currentUserPresent = false,
@@ -145,6 +143,8 @@ module.exports = {
       if (currentUserPresent && otherUserPresent) {
         streamId = allConversations[i]._id.toString();
       }
+      currentUserPresent = false,
+      otherUserPresent = false;
     }
 
     const conv = await Conv.findById(streamId);
@@ -159,7 +159,7 @@ module.exports = {
     await conv.save();
     io.getIO().emit("messages", {
       action: "create",
-      post: { messages: conv.messages }
+      post: { messages: conv.messages, bearers: [otherUser._id.toString(), currentUser._id.toString()] }
     });
     return { messages: conv.messages };
   },
@@ -392,7 +392,7 @@ module.exports = {
     // Signal needs to go to only those interested
     io.getIO().emit("messages", {
       action: "join",
-      post: { users: conv.users }
+      post: { users: conv.users, bearers: [otherUser._id.toString(), currentUser._id.toString()] }
     });
 
     return { messages: conv.messages, users: conv.users };
