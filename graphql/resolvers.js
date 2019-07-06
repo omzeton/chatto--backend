@@ -116,6 +116,18 @@ module.exports = {
     };
   },
   createMessage: async function({ messageInput }) {
+    let useFirstContact = messageInput.otherId === ":id" ? true : false;
+    let otherUserId = messageInput.otherId;
+    let currentUser = await User.findById(messageInput.ownId);
+
+    // If no id was specified use first contact
+    if (useFirstContact) {
+      otherUserId = currentUser.contacts[0].uId;
+    }
+    console.log(otherUserId);
+    let otherUser = await User.findById(otherUserId);
+    
+    console.log(otherUser);
     // Find stream where there are both ids
     const allConversations = await Conv.find();
     let currentUserPresent = false,
@@ -123,10 +135,10 @@ module.exports = {
       streamId;
     for (let i = 0; i < allConversations.length; i++) {
       for (let u of allConversations[i].users) {
-        if (u.uId.toString() === messageInput.otherId) {
+        if (u.uId.toString() === otherUser._id.toString()) {
           otherUserPresent = true;
         }
-        if (u.uId.toString() === messageInput.ownId) {
+        if (u.uId.toString() === currentUser._id.toString()) {
           currentUserPresent = true;
         }
       }
@@ -135,13 +147,12 @@ module.exports = {
       }
     }
 
-    console.log(streamId);
     const conv = await Conv.findById(streamId);
     const newMessage = {
-      uId: messageInput.userId,
+      uId: currentUser._id,
       body: messageInput.body,
       date: getCurrentDate(),
-      avatar: messageInput.avatar,
+      avatar: currentUser.avatar,
       attachment: messageInput.attachment
     };
     conv.messages.push(newMessage);
@@ -154,27 +165,38 @@ module.exports = {
   },
   changeUserAvatar: async function({ fileUrl, userId }) {
     const user = await User.findById(userId);
-    let oldAvatar = user.avatar,
-      uId = user._id;
     user.avatar = fileUrl;
     await user.save();
-    const convIds = [];
-    for (let c of user.conversations) {
-      convIds.push(c.cId);
+
+    // Change avatars in all contacts
+    const allUsers = await User.find();
+
+    for (let i = 0; i < allUsers.length; i++) {
+      for (let c of allUsers[i].contacts) {
+        if (c.uId.toString() === user._id.toString()) {
+          c.avatar = fileUrl;
+        }
+      }
+      await allUsers[i].save();
     }
-    for (let i = 0; i < convIds.length; i++) {
-      let conversation = await Conv.findById(convIds[i]);
-      for (let y = 0; y < conversation.messages.length; y++) {
-        if (conversation.messages[y].avatar === oldAvatar) {
-          conversation.messages[y].avatar = fileUrl;
+
+    // Change avatars in message streams
+    const allConversations = await Conv.find();
+
+    for (let i = 0; i < allConversations.length; i++) {
+      // In users
+      for (u of allConversations[i].users) {
+        if (u.uId.toString() === user._id.toString()) {
+          u.avatar = fileUrl;
         }
       }
-      for (let x = 0; x < conversation.users.length; x++) {
-        if (conversation.users[x].uId.toString() === uId.toString()) {
-          conversation.users[x].avatar = fileUrl;
+      // In messages
+      for (m of allConversations[i].messages) {
+        if (m.uId.toString() === user._id.toString()) {
+          m.avatar = fileUrl;
         }
       }
-      await conversation.save();
+      await allConversations[i].save();
     }
     return { message: "Avatar changed successfully. " };
   },
@@ -216,119 +238,142 @@ module.exports = {
     user.username = username;
     await user.save();
 
-    const convIds = [];
-    for (let c of user.conversations) {
-      convIds.push(c.cId);
-    }
-    for (let i = 0; i < convIds.length; i++) {
-      let conversation = await Conv.findById(convIds[i]);
-      for (let x = 0; x < conversation.users.length; x++) {
-        if (conversation.users[x].uId.toString() === user._id.toString()) {
-          conversation.users[x].username = username;
+
+    // Change username in all contacts
+    const allUsers = await User.find();
+
+    for (let i = 0; i < allUsers.length; i++) {
+      for (let c of allUsers[i].contacts) {
+        if (c.uId.toString() === user._id.toString()) {
+          c.username = username;
         }
       }
-      await conversation.save();
+      await allUsers[i].save();
     }
+
+   // Change avatars in message streams
+   const allConversations = await Conv.find();
+
+   for (let i = 0; i < allConversations.length; i++) {
+     // In users
+     for (u of allConversations[i].users) {
+       if (u.uId.toString() === user._id.toString()) {
+         u.username = username;
+       }
+     }
+     // In messages
+     for (m of allConversations[i].messages) {
+       if (m.uId.toString() === user._id.toString()) {
+         m.username = username;
+       }
+     }
+     await allConversations[i].save();
+   }
     return { message: "Username changed successfully." };
   },
   deleteAccount: async function({ userId }) {
     await User.findByIdAndDelete(userId);
     return { status: 204 };
   },
-  connectToStream: async function({ otherId, ownId, useFirstContact }) {
-    let globalOtherId = otherId;
+  connectToStream: async function({ otherId, ownId }) {
+    let useFirstContact = otherId === ":id" ? true : false;
+    let otherUserId = otherId;
+    let currentUser = await User.findById(ownId);
+
+    // If no id was specified use first contact
     if (useFirstContact) {
-      const user = await User.findById(ownId);
-      globalOtherId = user.contacts[0].uId;
+      otherUserId = currentUser.contacts[0].uId;
     }
-    // Add user to contacts
-    if (!useFirstContact) {
-      const currentUser = await User.findById(ownId);
-      let addNewContact = true;
-      for (let c of currentUser.contacts) {
-        if (c.uId.toString() === globalOtherId) {
-          addNewContact = false;
-        }
-      }
-      const otherUser = await User.findById(globalOtherId);
+    let otherUser = await User.findById(otherUserId);
 
-      if (addNewContact) {
-        const newContactItem = {
-          uId: globalOtherId,
-          avatar: otherUser.avatar,
-          username: otherUser.username
-        };
-        currentUser.contacts.push(newContactItem);
-        await currentUser.save();
-
-        const newContactItemOther = {
-          uId: ownId,
-          avatar: currentUser.avatar,
-          username: currentUser.username
-        };
-        otherUser.contacts.push(newContactItemOther);
-        await otherUser.save();
+    // Add other user to current contacts
+    let addNewContact = true;
+    for (let c of currentUser.contacts) {
+      if (c.uId.toString() === otherUser._id.toString()) {
+        addNewContact = false;
       }
+    }
+
+    if (addNewContact) {
+      // Add other user to current contacts
+      const newContactItem = {
+        uId: otherUser._id,
+        avatar: otherUser.avatar,
+        username: otherUser.username
+      };
+      currentUser.contacts.push(newContactItem);
+      currentUser = await currentUser.save();
+      // Add current user to other contacts
+      const newContactItemOther = {
+        uId: currentUser._id,
+        avatar: currentUser.avatar,
+        username: currentUser.username
+      };
+      otherUser.contacts.push(newContactItemOther);
+      otherUser = await otherUser.save();
     }
 
     // Check if the conversation already exsists
     // Create new conversation
     const allConversations = await Conv.find();
-    let createNewStream = true,
+    let streamExists = false,
       currentUserExists = false,
       otherUserExists = false,
-      convId;
+      existingConvId;
+
     for (let i = 0; i < allConversations.length; i++) {
       for (let u of allConversations[i].users) {
-        if (u.uId.toString() === ownId) {
+        if (u.uId.toString() === currentUser._id.toString()) {
           currentUserExists = true;
         }
-        if (u.uId.toString() === globalOtherId.toString()) {
+        if (u.uId.toString() === otherUser._id.toString()) {
           otherUserExists = true;
         }
       }
       if (otherUserExists && currentUserExists) {
-        convId = allConversations[i]._id.toString();
+        existingConvId = allConversations[i]._id.toString();
       }
-    }
-    if (otherUserExists && currentUserExists) {
-      createNewStream = false;
-    }
-
-    if (useFirstContact) {
-      createNewStream = false;
+      currentUserExists = false;
+      otherUserExists = false;
     }
 
-    if (createNewStream) {
+    if (existingConvId) {
+      streamExists = true;
+    }
+
+    if (allConversations === undefined || allConversations.length == 0) {
+      streamExists = false;
+    }
+
+    let conv;
+
+    if (!streamExists) {
       const newConversationStream = new Conv({
         messages: [],
         users: [
           {
-            uId: globalOtherId,
+            uId: otherUser._id,
             username: otherUser.username,
             avatar: otherUser.avatar
           },
           {
-            uId: ownId,
+            uId: currentUser._id,
             username: currentUser.username,
             avatar: currentUser.avatar
           }
         ]
       });
-      const conv = await newConversationStream.save();
-      io.getIO().emit("messages", {
-        action: "join",
-        post: { users: conv.users }
-      });
-      return { messages: conv.messages, users: conv.users };
+      conv = await newConversationStream.save();
     } else {
-      const conv = await Conv.findById(convId);
-      io.getIO().emit("messages", {
-        action: "join",
-        post: { users: conv.users }
-      });
-      return { messages: conv.messages, users: conv.users };
+      conv = await Conv.findById(existingConvId);
     }
+
+    io.getIO().emit("messages", {
+      action: "join",
+      post: { users: conv.users }
+    });
+
+    return { messages: conv.messages, users: conv.users };
   },
   fetchAllUsers: async function({ userId }) {
     const users = await User.find();

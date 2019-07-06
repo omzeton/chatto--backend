@@ -67,14 +67,13 @@ module.exports = buildSchema(`
         ownId: String!
         otherId: String!
         body: String!
-        avatar: String!
         attachment: String!
     }
 
     type RootQuery {
         login(username: String!, password: String!): AuthData!
         fetchAllUsers(userId: String!): Allusers!
-        connectToStream(otherId: String!, ownId: String!, useFirstContact: Boolean!): ConversationData!
+        connectToStream(otherId: String!, ownId: String!): ConversationData!
         fetchContactList(userId: String!): ContactList!
     }
 
